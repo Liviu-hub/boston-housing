@@ -8,9 +8,8 @@ Antrenează și evaluează un model de regresie liniară care prezice prețul me
 
 ## Fișiere disponibile
 
-- `dataset/boston.csv` – setul de date cu 13 coloane (predictori) și `target` (prețul casei)
-- `code/examen_student.py` – fișierul pe care trebuie să îl completezi
-- `requirements.txt` – pachetele necesare pentru rulare
+- `boston.csv`
+- `examen_student.py` – fișierul pe care trebuie să îl completezi
 
 ---
 
