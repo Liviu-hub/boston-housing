@@ -3,3 +3,127 @@
 # TODO: Evaluează modelul cu R², MSE, etc.
 # TODO: Afișează un grafic RM vs target
 # TODO: Scrie concluzii la final
+# examen_student.py
+# Examen ML: Regresie Liniară pe Boston Housing
+# Rulează: python examen_student.py
+
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+from sklearn.feature_selection import SelectKBest, f_regression
+
+# ===== 1) Încarcă boston.csv =====
+df = pd.read_csv("boston.csv")
+
+# redenumește target în MEDV dacă e necesar
+if "MEDV" not in df.columns and "target" in df.columns:
+    df = df.rename(columns={"target": "MEDV"})
+
+if "MEDV" not in df.columns:
+    raise ValueError("Nu am găsit coloana 'MEDV' sau 'target' în boston.csv")
+
+print(f"[INFO] Dataset shape: {df.shape}")
+print(f"[INFO] Coloane: {list(df.columns)}")
+
+# ===== 2) Împarte datele =====
+X = df.drop(columns=["MEDV"])
+y = df["MEDV"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# ===== 3) Normalizează =====
+scaler = StandardScaler()
+X_train_s = scaler.fit_transform(X_train)
+X_test_s = scaler.transform(X_test)
+
+# ===== 4) Linear Regression =====
+lr = LinearRegression()
+lr.fit(X_train_s, y_train)
+y_pred_lr = lr.predict(X_test_s)
+
+def evaluate(y_true, y_pred):
+    r2 = r2_score(y_true, y_pred)
+    mse = mean_squared_error(y_true, y_pred)        # fără squared
+    rmse = np.sqrt(mse)                             # RMSE = sqrt(MSE)
+    mae = mean_absolute_error(y_true, y_pred)
+    return r2, mse, rmse, mae
+
+r2_lr, mse_lr, rmse_lr, mae_lr = evaluate(y_test, y_pred_lr)
+
+# ===== 5) SelectKBest - Top 5 =====
+selector = SelectKBest(score_func=f_regression, k=5)
+selector.fit(X_train_s, y_train)
+mask = selector.get_support(indices=True)
+top5_names = X.columns[mask].tolist()
+
+X_train_top5 = selector.transform(X_train_s)
+X_test_top5 = selector.transform(X_test_s)
+
+lr_top5 = LinearRegression()
+lr_top5.fit(X_train_top5, y_train)
+y_pred_top5 = lr_top5.predict(X_test_top5)
+
+r2_top5, mse_top5, rmse_top5, mae_top5 = evaluate(y_test, y_pred_top5)
+
+# ===== 6) Ridge Regression =====
+ridge = Ridge(alpha=1.0, random_state=42)
+ridge.fit(X_train_s, y_train)
+y_pred_ridge = ridge.predict(X_test_s)
+r2_ridge, mse_ridge, rmse_ridge, mae_ridge = evaluate(y_test, y_pred_ridge)
+
+# ===== 7) Afișează metricile =====
+results = pd.DataFrame({
+    "Model": [
+        "Linear Regression (toate)",
+        f"Linear Regression (Top 5: {', '.join(top5_names)})",
+        "Ridge Regression (alpha=1.0)"
+    ],
+    "R2": [r2_lr, r2_top5, r2_ridge],
+    "MSE": [mse_lr, mse_top5, mse_ridge],
+    "RMSE": [rmse_lr, rmse_top5, rmse_ridge],
+    "MAE": [mae_lr, mae_top5, mae_ridge]
+})
+
+print("\n===== Metrici pe setul de test =====")
+print(results.round(4).to_string(index=False))
+
+# ===== 8) Grafic scatter RM vs MEDV =====
+if "RM" in df.columns:
+    plt.figure(figsize=(7, 5))
+    plt.scatter(df["RM"], df["MEDV"], alpha=0.7)
+    plt.xlabel("RM (număr mediu de camere)")
+    plt.ylabel("MEDV (preț mediu locuință)")
+    plt.title("RM vs MEDV")
+    plt.tight_layout()
+    plt.savefig("scatter_rm_medv.png", dpi=150)
+    plt.show()
+    print("[INFO] Salvat: scatter_rm_medv.png")
+
+# ===== 9) Histogramă erori =====
+errors = y_test - y_pred_lr
+plt.figure(figsize=(7, 5))
+plt.hist(errors, bins=20, edgecolor="black")
+plt.xlabel("Eroare (y_test - y_pred)")
+plt.ylabel("Frecvență")
+plt.title("Distribuția erorii — Linear Regression")
+plt.tight_layout()
+plt.savefig("hist_errors_lr.png", dpi=150)
+plt.show()
+print("[INFO] Salvat: hist_errors_lr.png")
+
+# ===== 10) Concluzii =====
+best_idx = np.argmax([r2_lr, r2_top5, r2_ridge])
+best_name = results.iloc[best_idx]["Model"]
+print("\n===== Concluzii =====")
+print(f"- Cel mai bun R²: {best_name} (R²={results.iloc[best_idx]['R2']:.4f}).")
+print("- RMSE și MAE indică dimensiunea medie a erorii în unități MEDV.")
+print("- Top
